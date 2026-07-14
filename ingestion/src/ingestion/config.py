@@ -27,7 +27,9 @@ class Config:
 
 def load_config(path: Path | None = None) -> Config:
     data: dict = {}
-    if path is not None and Path(path).exists():
+    if path is not None:
+        if not Path(path).exists():
+            raise FileNotFoundError(f"config file not found: {path}")
         with open(path, "rb") as f:
             data = tomllib.load(f)
 

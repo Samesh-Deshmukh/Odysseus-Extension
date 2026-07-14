@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from ingestion.config import Config, load_config
 
 
@@ -39,3 +41,11 @@ def test_env_url_overrides_toml(tmp_path, monkeypatch):
     cfg = load_config(toml)
 
     assert cfg.odysseus_url == "http://brain.lan:7000"
+
+
+def test_missing_config_path_raises(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_USER", "sam")
+    monkeypatch.setenv("ODYSSEUS_PASSWORD", "secret")
+
+    with pytest.raises(FileNotFoundError):
+        load_config(Path("/no/such/ingestion.toml"))

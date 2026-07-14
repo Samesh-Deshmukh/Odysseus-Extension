@@ -9,6 +9,7 @@ def _seed_triple(st):
     chunk_id = st.add_chunk(doc_id, ordinal=0, char_start=0, char_end=10, text="hello mqtt")
     triple_id = st.add_triple(
         doc_id, chunk_id, subject="A", predicate="references", object_="MQTT",
+        char_start=0, char_end=10,
         confidence=1.0, extractor_model="naive-v1", extracted_at="2026-01-02T00:00:00Z",
     )
     return doc_id, chunk_id, triple_id
@@ -36,6 +37,8 @@ def test_triple_lands_staged_with_provenance(tmp_path):
     assert r["chunk_id"] == chunk_id
     assert r["confidence"] == 1.0
     assert r["extractor_model"] == "naive-v1"
+    assert r["char_start"] == 0
+    assert r["char_end"] == 10
 
 
 def test_status_transitions_and_correction(tmp_path):

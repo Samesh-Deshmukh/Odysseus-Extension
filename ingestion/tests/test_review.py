@@ -5,7 +5,7 @@ from ingestion.staging import Staging
 def _seed(st):
     doc_id = st.upsert_document("/v/a.md", "obsidian", "A", "c", "m", "h")
     ch = st.add_chunk(doc_id, 0, 0, 5, "hello")
-    return st.add_triple(doc_id, ch, "A", "references", "MQTT", 1.0, "naive-v1", "t")
+    return st.add_triple(doc_id, ch, "A", "references", "MQTT", 0, 5, 1.0, "naive-v1", "t")
 
 
 def test_approve(tmp_path):

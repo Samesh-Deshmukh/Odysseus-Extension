@@ -36,23 +36,32 @@ def ingest(cfg: Config, staging: Staging, rag, extracted_at: str) -> IngestStats
         spath = str(path)
         try:
             digest = file_hash(path)
-            if staging.get_document_hash(spath) == digest:
+            stored_hash, stored_uploaded = staging.get_document_state(spath)
+            # Skip only if fully done: hash matches AND (no rag this run OR it was uploaded before)
+            if stored_hash == digest and (rag is None or stored_uploaded == 1):
                 stats.files_skipped += 1
                 continue
 
             text, meta = extract_text(path)
             doc_id = staging.upsert_document(
                 path=spath, source_type=meta["source_type"], title=meta["title"],
-                created=meta["created"], modified=meta["modified"], hash=digest,
+                created=meta["created"], modified=meta["modified"], hash="",  # pending until success
             )
+            staging.delete_doc_children(doc_id)  # clear stale/duplicate rows on re-ingest
+
+            seen_spo = set()
             for chunk in chunk_text(text, cfg.chunk_size, cfg.chunk_overlap):
                 chunk_id = staging.add_chunk(
                     doc_id, chunk.ordinal, chunk.char_start, chunk.char_end, chunk.text
                 )
                 for t in extract_triples(meta["title"], chunk):
+                    key = (t.subject, t.predicate, t.object)
+                    if key in seen_spo:  # Fix 4: dedup overlap duplicates within a doc
+                        continue
+                    seen_spo.add(key)
                     staging.add_triple(
                         doc_id, chunk_id, t.subject, t.predicate, t.object,
-                        t.confidence, EXTRACTOR_MODEL, extracted_at,
+                        t.char_start, t.char_end, t.confidence, EXTRACTOR_MODEL, extracted_at,
                     )
                     stats.triples_staged += 1
 
@@ -60,6 +69,7 @@ def ingest(cfg: Config, staging: Staging, rag, extracted_at: str) -> IngestStats
                 rag.upload(path)
                 staging.mark_rag_uploaded(doc_id)
 
+            staging.set_document_hash(doc_id, digest, indexed_at=extracted_at)  # LAST: only now is "done"
             stats.files_ingested += 1
         except Exception as exc:  # per-file isolation — never abort the run
             stats.files_failed += 1

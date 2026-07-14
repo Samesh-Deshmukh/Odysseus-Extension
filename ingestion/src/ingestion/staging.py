@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS triples (
     subject TEXT NOT NULL,
     predicate TEXT NOT NULL,
     object TEXT NOT NULL,
+    char_start INTEGER,
+    char_end INTEGER,
     confidence REAL,
     extractor_model TEXT,
     extracted_at TEXT,
@@ -72,6 +74,25 @@ class Staging:
         row = self.conn.execute("SELECT hash FROM documents WHERE path=?", (path,)).fetchone()
         return row["hash"] if row else None
 
+    def get_document_state(self, path) -> tuple[str | None, int]:
+        row = self.conn.execute(
+            "SELECT hash, rag_uploaded FROM documents WHERE path=?", (path,)
+        ).fetchone()
+        if row is None:
+            return (None, 0)
+        return (row["hash"], row["rag_uploaded"])
+
+    def delete_doc_children(self, doc_id) -> None:
+        self.conn.execute("DELETE FROM triples WHERE doc_id=?", (doc_id,))
+        self.conn.execute("DELETE FROM chunks WHERE doc_id=?", (doc_id,))
+        self.conn.commit()
+
+    def set_document_hash(self, doc_id, hash, indexed_at) -> None:
+        self.conn.execute(
+            "UPDATE documents SET hash=?, indexed_at=? WHERE id=?", (hash, indexed_at, doc_id)
+        )
+        self.conn.commit()
+
     def mark_rag_uploaded(self, doc_id) -> None:
         self.conn.execute("UPDATE documents SET rag_uploaded=1 WHERE id=?", (doc_id,))
         self.conn.commit()
@@ -85,16 +106,16 @@ class Staging:
         return cur.lastrowid
 
     def add_triple(self, doc_id, chunk_id, subject, predicate, object_,
-                   confidence, extractor_model, extracted_at) -> int:
+                   char_start, char_end, confidence, extractor_model, extracted_at) -> int:
         cur = self.conn.execute(
             """
             INSERT INTO triples
                 (doc_id, chunk_id, subject, predicate, object,
-                 confidence, extractor_model, extracted_at, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'staged')
+                 char_start, char_end, confidence, extractor_model, extracted_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'staged')
             """,
             (doc_id, chunk_id, subject, predicate, object_,
-             confidence, extractor_model, extracted_at),
+             char_start, char_end, confidence, extractor_model, extracted_at),
         )
         self.conn.commit()
         return cur.lastrowid
