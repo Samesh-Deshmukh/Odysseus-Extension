@@ -72,3 +72,20 @@ Spawned by the app from `mcp_servers/`:
 | 5 | `data/` backup, restore-tested | ✅ verified (`backup.sh` + `--restore-test` passed) |
 
 **Module 0 complete.** Next: Module 1 — Ingestion & Data Layer.
+
+## Module 1 — Slice 1 (ingestion skeleton) status
+
+Service: `ingestion/` (uv project, 33 tests). Config: `ingestion/ingestion.toml` (gitignored;
+points at the Obsidian vault). Creds via `ODYSSEUS_USER`/`ODYSSEUS_PASSWORD` env vars.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Vault `.md` walked + staged with provenance | ✅ 83 files, 192 triples (56 references, 136 related_to), 0 failed |
+| 2 | Triples visible via `review --list` | ✅ verified |
+| 3 | Review approve/reject/correct works | ✅ verified (approve/reject/correct all move status) |
+| 4 | Files uploaded to Odysseus RAG (`ingest` with creds) | ⏳ pending — needs brain running + login |
+| 5 | Semantic search returns vault hits (e.g. MQTT) | ⏳ pending — depends on #4 |
+
+Triples are wikilink/tag-based (Obsidian `[[links]]` + `#tags`); prose-only terms like "MQTT" are
+served by Odysseus RAG semantic search (#5), not the naive-v1 graph extractor.
+Next after DoD: Slice 2 (12–14B model + schema-constrained extractor + eval set).
