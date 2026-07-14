@@ -1,0 +1,9 @@
+# Copy to ingestion.toml. Credentials do NOT go here — set ODYSSEUS_USER /
+# ODYSSEUS_PASSWORD (and optionally ODYSSEUS_URL) as environment variables.
+roots = ["/home/samesh/Storage/sames/Documents/A folder"]
+ignore_globs = ["**/.git/**", "**/node_modules/**", "**/.obsidian/**"]
+extensions = [".md"]
+db_path = "staging.db"
+chunk_size = 1000
+chunk_overlap = 200
+odysseus_url = "http://localhost:7000"
