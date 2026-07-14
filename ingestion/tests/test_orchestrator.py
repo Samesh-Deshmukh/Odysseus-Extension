@@ -162,6 +162,41 @@ def test_overlapping_chunks_dedup_triples(tmp_path):
     assert len(mqtt_refs) == 1
 
 
+def test_no_rag_dry_run_then_rag_uploads(tmp_path):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    target = vault / "arch.md"
+    target.write_text("# Arch\nJANET uses [[MQTT]].")
+
+    cfg = _cfg(tmp_path, vault)
+    staging = Staging(cfg.db_path)
+
+    # Real ingest: file uploaded, rag_uploaded=1, hash=H1.
+    rag1 = FakeRag()
+    stats1 = ingest(cfg, staging, rag1, extracted_at="2026-07-12T00:00:00Z")
+    assert stats1.files_ingested == 1
+    assert rag1.uploaded == ["arch.md"]
+
+    # Content changes to H2.
+    target.write_text("# Arch\nJANET uses [[CoAP]].")
+
+    # Dry run (--no-rag): file is re-staged (hash differs), nothing uploaded.
+    stats2 = ingest(cfg, staging, None, extracted_at="2026-07-12T01:00:00Z")
+    assert stats2.files_ingested == 1
+    assert stats2.files_skipped == 0
+    _, uploaded_after_dry_run = staging.get_document_state(str(target))
+    assert uploaded_after_dry_run == 0
+
+    # Same (now H2) content, real ingest: must NOT be skipped, must upload
+    # the new content — the earlier dry run must not have left rag_uploaded
+    # stuck at 1 from the original upload.
+    rag3 = FakeRag()
+    stats3 = ingest(cfg, staging, rag3, extracted_at="2026-07-12T02:00:00Z")
+    assert stats3.files_skipped == 0
+    assert stats3.files_ingested == 1
+    assert rag3.uploaded == ["arch.md"]
+
+
 def test_ingest_rejects_nonpositive_chunk_size(tmp_path):
     vault = tmp_path / "vault"
     vault.mkdir()

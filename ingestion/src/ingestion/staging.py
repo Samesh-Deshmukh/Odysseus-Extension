@@ -85,6 +85,10 @@ class Staging:
     def delete_doc_children(self, doc_id) -> None:
         self.conn.execute("DELETE FROM triples WHERE doc_id=?", (doc_id,))
         self.conn.execute("DELETE FROM chunks WHERE doc_id=?", (doc_id,))
+        # Re-staging means any prior upload no longer reflects current content,
+        # so the upload flag must go back to 0 until a fresh upload sets it
+        # again via mark_rag_uploaded.
+        self.conn.execute("UPDATE documents SET rag_uploaded=0 WHERE id=?", (doc_id,))
         self.conn.commit()
 
     def set_document_hash(self, doc_id, hash, indexed_at) -> None:
