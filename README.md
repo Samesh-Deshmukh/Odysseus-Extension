@@ -27,10 +27,11 @@ structured data, and makes them searchable in the brain:
 ## Prerequisites
 
 - **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/).
-- A running **Odysseus brain** (default `http://localhost:7000`) — only needed for the RAG-upload
-  step. For RAG to work, the brain needs its **ChromaDB server** (on `localhost:8100`) and an
-  **embedding endpoint** configured. See `ops/instance-config.md` for the exact setup on this host.
-  You can run ingestion **without** a brain using `--no-rag` (stages triples locally only).
+- A running **Odysseus brain** (default `http://localhost:7000`; start it with
+  `systemctl --user start odysseus`) — only needed for the RAG-upload step. For RAG to work, the brain
+  also needs its **ChromaDB server** (on `localhost:8100`) and an **embedding endpoint** configured.
+  See `ops/instance-config.md` for the exact setup on this host. You can run ingestion **without** a
+  brain using `--no-rag` (stages triples locally only).
 
 ## Installation
 

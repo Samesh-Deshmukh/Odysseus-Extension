@@ -11,16 +11,23 @@ _Last verified: 2026-07-07._
 - **App root (live):** `/home/samesh/Projects/odyssey/odysseus` — this is the running instance's
   cwd (verified via `/proc/<pid>/cwd`), **not** a separate `~/odysseus` checkout. An old Cookbook
   crash log references `~/odysseus/venv`; that path is stale history, ignore it.
-- **Run (native, non-Docker):**
+- **Run (user systemd service, non-Docker):**
+  ```bash
+  systemctl --user start odysseus     # start   (status/stop: systemctl --user status|stop odysseus)
+  journalctl --user -u odysseus -f    # follow logs
+  ```
+  Manual fallback (foreground dev run):
   ```bash
   cd /home/samesh/Projects/odyssey/odysseus
   python -m uvicorn app:app --host 127.0.0.1 --port 7000
   ```
 - **Venv:** `/home/samesh/Projects/odyssey/odysseus/venv` (Python 3.14).
 - **UI:** http://localhost:7000
-- **Data dir:** `/home/samesh/Projects/odyssey/odysseus/data` (~2.4 MB). Chroma is native here, so
-  no separate vector service. `data/chroma` is currently empty (0 B); RAG data lives under
-  `personal_docs/`, `rag/`, and `memory_vectors/`.
+- **Data dir:** `/home/samesh/Projects/odyssey/odysseus/data`. **Vector store is NOT embedded** —
+  Odysseus's `get_chroma_client()` is HTTP-only and needs a **ChromaDB server at `localhost:8100`**
+  (plus an embedding endpoint). See the "Brain RAG prerequisites" section below for the server + nomic
+  endpoint setup discovered during the Module 1 DoD run. (The earlier "Chroma is native, no separate
+  service" note was wrong.)
 
 ## Models (LLM backend)
 
