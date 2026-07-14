@@ -83,9 +83,33 @@ points at the Obsidian vault). Creds via `ODYSSEUS_USER`/`ODYSSEUS_PASSWORD` env
 | 1 | Vault `.md` walked + staged with provenance | ✅ 83 files, 192 triples (56 references, 136 related_to), 0 failed |
 | 2 | Triples visible via `review --list` | ✅ verified |
 | 3 | Review approve/reject/correct works | ✅ verified (approve/reject/correct all move status) |
-| 4 | Files uploaded to Odysseus RAG (`ingest` with creds) | ⏳ pending — needs brain running + login |
-| 5 | Semantic search returns vault hits (e.g. MQTT) | ⏳ pending — depends on #4 |
+| 4 | Files uploaded to Odysseus RAG (`ingest` with creds) | ✅ 83/83 uploaded, failed=0 (210 chunks indexed) |
+| 5 | Semantic search returns vault hits (e.g. MQTT) | ✅ "MQTT"/"home automation"/"voice assistant" all return vault chunks |
+
+**Module 1 Slice 1 DoD: COMPLETE (5/5).**
 
 Triples are wikilink/tag-based (Obsidian `[[links]]` + `#tags`); prose-only terms like "MQTT" are
 served by Odysseus RAG semantic search (#5), not the naive-v1 graph extractor.
 Next after DoD: Slice 2 (12–14B model + schema-constrained extractor + eval set).
+
+### ⚠️ Brain RAG prerequisites discovered during the DoD run (correct the earlier "native Chroma" note)
+This Odysseus build's `get_chroma_client()` is **HTTP-only** — it REQUIRES a ChromaDB server at
+`localhost:8100` (`CHROMADB_HOST`/`CHROMADB_PORT`); there is **no embedded/PersistentClient fallback**.
+The earlier "Chroma is native here, no separate service" claim was wrong. RAG/vector-memory/tool-index
+were all degraded because no Chroma server was running.
+
+To get the DoD green, two things were set up (both must persist for RAG to keep working):
+1. **ChromaDB server on :8100** — currently started as an *isolated `uv` process* (the odysseus venv has
+   chromadb 1.5.9 **client-only**; the server CLI needs `chromadb_rust_bindings`). Command used:
+   `uv run --no-project --python 3.12 --with chromadb chroma run --host 127.0.0.1 --port 8100 --path .../odysseus/data/chroma`.
+   **This is NOT durable** — it dies with the session/reboot. TODO: make Chroma a managed service
+   (systemd unit, Docker `--restart`, or install the rust bindings + a startup script). Data persists
+   under `odysseus/data/chroma` as long as `--path` stays the same.
+2. **Embedding endpoint** — set via `POST /api/embeddings/endpoint` to Ollama's OpenAI-compatible
+   `http://127.0.0.1:11434/v1/embeddings`, model `nomic-embed-text` (768-dim). This is **persisted in
+   Odysseus config** (survives restart) but depends on `nomic-embed-text` staying pulled in Ollama.
+   Note: use `127.0.0.1`, not `localhost` (the SSRF guard rejects the `::1` resolution).
+
+Uploaded files are copied into `odysseus/data/personal_uploads/admin/` (per-file upload design).
+`/api/rag/stats` may report "not available" even when uploads/search work — it reads a stale startup
+reference, not the live singleton; trust an actual upload/query over that endpoint.
