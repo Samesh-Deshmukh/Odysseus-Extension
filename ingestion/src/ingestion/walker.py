@@ -22,7 +22,7 @@ def _ignored(path: Path, ignore_globs: list[str]) -> bool:
 def walk(roots: list[Path], ignore_globs: list[str], extensions: set[str]) -> Iterator[Path]:
     exts = {e.lower() for e in extensions}
     for root in roots:
-        root = Path(root)
+        root = Path(root).resolve()
         if not root.exists():
             continue
         for path in sorted(root.rglob("*")):

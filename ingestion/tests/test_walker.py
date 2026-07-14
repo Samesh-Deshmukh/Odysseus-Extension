@@ -27,3 +27,21 @@ def test_file_hash_changes_with_content(tmp_path):
     f.write_text("two")
     assert file_hash(f) != h1
     assert len(h1) == 64
+
+
+def test_walk_ignores_relative_root_dot_git(tmp_path, monkeypatch):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config.md").write_text("# junk")
+    (tmp_path / "wanted.md").write_text("# keep")
+
+    monkeypatch.chdir(tmp_path)
+
+    found = sorted(p.name for p in walk([Path(".")], ["**/.git/**"], {".md"}))
+    assert found == ["wanted.md"]
+
+
+def test_walk_matches_extensions_case_insensitively(tmp_path):
+    (tmp_path / "KEEP.MD").write_text("# keep")
+
+    found = sorted(p.name for p in walk([tmp_path], [], {".md"}))
+    assert found == ["KEEP.MD"]
