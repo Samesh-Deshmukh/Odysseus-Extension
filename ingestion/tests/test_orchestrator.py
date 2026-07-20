@@ -21,6 +21,7 @@ def _cfg(tmp_path, root) -> Config:
         roots=[root], ignore_globs=["**/.git/**"], extensions={".md"},
         db_path=tmp_path / "s.db", chunk_size=1000, chunk_overlap=200,
         odysseus_url="http://x", odysseus_user="u", odysseus_password="p",
+        extractor="naive",
     )
 
 
@@ -208,3 +209,25 @@ def test_ingest_rejects_nonpositive_chunk_size(tmp_path):
 
     with pytest.raises(ValueError):
         ingest(cfg, staging, None, extracted_at="2026-07-12T00:00:00Z")
+
+
+def test_ingest_uses_injected_extractor_model_tag(tmp_path):
+    from ingestion.extractor import ExtractorHandle
+    from ingestion.triples import Triple
+
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "n.md").write_text("# N\nJANET uses MQTT.")
+
+    cfg = _cfg(tmp_path, vault)
+    staging = Staging(cfg.db_path)
+
+    def fake_extract(title, chunk):
+        return [Triple("JANET", "uses", "MQTT", 0.9, chunk.char_start, chunk.char_end)]
+
+    handle = ExtractorHandle(model="llm-v1:test", extract=fake_extract)
+    stats = ingest(cfg, staging, None, extracted_at="2026-07-19T00:00:00Z", extractor=handle)
+    assert stats.triples_staged == 1
+    rows = staging.list_triples("staged")
+    assert rows[0]["extractor_model"] == "llm-v1:test"
+    assert rows[0]["object"] == "MQTT"
