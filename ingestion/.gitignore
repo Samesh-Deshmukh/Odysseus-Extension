@@ -6,3 +6,6 @@ __pycache__/
 *.egg-info/
 *.db
 ingestion.toml
+
+# Live eval gold set contains real personal note text — never commit it.
+eval/gold.jsonl
