@@ -88,7 +88,11 @@ class LlmExtractor:
         data = self._call_with_retry(payload, chunk.ordinal)
         if data is None:
             return []
-        return self._to_triples(data, chunk)
+        try:
+            return self._to_triples(data, chunk)
+        except Exception as exc:
+            print(f"[llm_extractor] chunk#{chunk.ordinal} malformed payload: {type(exc).__name__}: {exc}")
+            return []
 
     def _build_payload(self, doc_title: str, chunk_text: str) -> dict:
         user_msg = (
@@ -118,7 +122,7 @@ class LlmExtractor:
                     continue
                 content = resp.json()["choices"][0]["message"]["content"]
                 return json.loads(content)
-            except (httpx.HTTPError, KeyError, IndexError, ValueError, json.JSONDecodeError) as exc:
+            except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 last_err = f"{type(exc).__name__}: {exc}"
                 continue
         print(f"[llm_extractor] chunk#{ordinal} failed after retry: {last_err}")

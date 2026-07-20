@@ -124,6 +124,42 @@ def test_malformed_json_content_returns_empty():
     assert ex.extract("Arch", chunk) == []
 
 
+def test_null_content_returns_empty():
+    text = "JANET uses MQTT."
+    chunk = Chunk(ordinal=0, char_start=0, char_end=len(text), text=text)
+
+    def handler(request):
+        return httpx.Response(200, json={"choices": [{"message": {"content": None}}]})
+
+    ex = _extractor(handler)
+    assert ex.extract("Arch", chunk) == []
+
+
+def test_non_dict_top_level_returns_empty():
+    text = "JANET uses MQTT."
+    chunk = Chunk(ordinal=0, char_start=0, char_end=len(text), text=text)
+
+    def handler(request):
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps([])}}]})
+
+    ex = _extractor(handler)
+    assert ex.extract("Arch", chunk) == []
+
+
+def test_non_numeric_confidence_returns_empty():
+    text = "JANET uses MQTT."
+    chunk = Chunk(ordinal=0, char_start=0, char_end=len(text), text=text)
+
+    def handler(request):
+        return httpx.Response(200, json=_completion([
+            {"subject": "JANET", "predicate": "uses", "object": "MQTT",
+             "evidence": "JANET uses MQTT", "confidence": "high"},
+        ]))
+
+    ex = _extractor(handler)
+    assert ex.extract("Arch", chunk) == []
+
+
 def test_request_sends_temperature_zero_and_json_schema():
     text = "JANET uses MQTT."
     chunk = Chunk(ordinal=0, char_start=0, char_end=len(text), text=text)
