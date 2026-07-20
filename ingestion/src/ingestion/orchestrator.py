@@ -53,6 +53,7 @@ def ingest(cfg: Config, staging: Staging, rag, extracted_at: str,
             )
             staging.delete_doc_children(doc_id)  # clear stale/duplicate rows on re-ingest
 
+            io_before = extractor.io_failures() if extractor.io_failures else 0
             seen_spo = set()
             for chunk in chunk_text(text, cfg.chunk_size, cfg.chunk_overlap):
                 chunk_id = staging.add_chunk(
@@ -68,6 +69,14 @@ def ingest(cfg: Config, staging: Staging, rag, extracted_at: str,
                         t.char_start, t.char_end, t.confidence, extractor.model, extracted_at,
                     )
                     stats.triples_staged += 1
+
+            io_after = extractor.io_failures() if extractor.io_failures else 0
+            if io_after > io_before:
+                # Extractor hit a hard I/O failure on this file (e.g. endpoint down).
+                # Do NOT mark it done — leave the hash unset so it retries next run.
+                stats.files_failed += 1
+                print(f"[ingest] extraction I/O failure on {path}; left unmarked for retry")
+                continue
 
             if rag is not None:
                 rag.upload(path)

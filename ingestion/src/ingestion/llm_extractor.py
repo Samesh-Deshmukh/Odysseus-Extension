@@ -82,6 +82,7 @@ class LlmExtractor:
         self.client = client or httpx.Client(timeout=timeout)
         self.model = f"{EXTRACTOR_MODEL}:{model_label}" if model_label else EXTRACTOR_MODEL
         self.evidence_misses = 0
+        self.io_failures = 0
 
     def extract(self, doc_title: str, chunk: Chunk) -> list[Triple]:
         payload = self._build_payload(doc_title, chunk.text)
@@ -95,8 +96,9 @@ class LlmExtractor:
             return []
 
     def _build_payload(self, doc_title: str, chunk_text: str) -> dict:
+        safe_title = doc_title.replace('"""', "").replace("\n", " ").replace("\r", " ")
         user_msg = (
-            f"DOCUMENT (title: {doc_title}):\n"
+            f"DOCUMENT (title: {safe_title}):\n"
             f'"""\n{chunk_text}\n"""'
         )
         return {
@@ -126,6 +128,7 @@ class LlmExtractor:
                 last_err = f"{type(exc).__name__}: {exc}"
                 continue
         print(f"[llm_extractor] chunk#{ordinal} failed after retry: {last_err}")
+        self.io_failures += 1
         return None
 
     def _to_triples(self, data: dict, chunk: Chunk) -> list[Triple]:

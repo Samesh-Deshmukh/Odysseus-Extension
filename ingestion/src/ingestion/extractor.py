@@ -13,6 +13,7 @@ from ingestion.triples import Triple, extract_triples
 class ExtractorHandle:
     model: str
     extract: Callable[[str, Chunk], list[Triple]]
+    io_failures: Callable[[], int] | None = None
 
 
 def get_extractor(cfg: Config) -> ExtractorHandle:
@@ -22,5 +23,5 @@ def get_extractor(cfg: Config) -> ExtractorHandle:
         from ingestion.llm_extractor import LlmExtractor
 
         inst = LlmExtractor(cfg.llm_url, model_label=cfg.llm_model, timeout=cfg.llm_timeout)
-        return ExtractorHandle(model=inst.model, extract=inst.extract)
+        return ExtractorHandle(model=inst.model, extract=inst.extract, io_failures=lambda: inst.io_failures)
     raise ValueError(f"unknown extractor: {cfg.extractor!r} (expected 'llm' or 'naive')")
