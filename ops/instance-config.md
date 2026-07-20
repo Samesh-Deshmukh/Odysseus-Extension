@@ -41,6 +41,10 @@ _Last verified: 2026-07-07._
   **Intentionally not fixed:** Real-ESRGAN is optional image upscaling, off the brain's critical
   path, and `basicsr`/`realesrgan` are unmaintained. Dismiss the task in the Cookbook UI when
   convenient. Revisit only if image upscaling is actually wanted.
+- **Ingestion LLM extractor (Module 1, Slice 2):** calls a local **llama.cpp Qwen-14B** endpoint at
+  `http://127.0.0.1:8081/v1` (OpenAI-compatible), separate from the Ollama chat model above.
+  `response_format: json_schema` confirmed working against this endpoint. This is unrelated to the
+  brain's own chat/embedding models — the ingestion service reaches it directly, not through Odysseus.
 
 ## MCP servers (running, verified)
 
@@ -120,3 +124,21 @@ To get the DoD green, two things were set up (both must persist for RAG to keep 
 Uploaded files are copied into `odysseus/data/personal_uploads/admin/` (per-file upload design).
 `/api/rag/stats` may report "not available" even when uploads/search work — it reads a stale startup
 reference, not the live singleton; trust an actual upload/query over that endpoint.
+
+## Module 1 — Slice 2 status (LLM extractor + eval harness)
+
+**STUB — to be filled in after the live eval run with the user, against the real gold set.**
+Do not treat the rows below as achieved until each is verified interactively and this table is
+updated with real numbers/dates.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Extractor swapped to schema-constrained LLM (`llm-v1`, local Qwen) | ☐ pending live verification |
+| 2 | Eval harness built (`cli eval`, precision/recall/F1 scorer) | ☐ pending live verification |
+| 3 | Gold set bootstrapped (`ingestion/eval/gold.jsonl`, real vault chunks, user-approved) | ☐ pending |
+| 4 | Precision ≥ 0.80 achieved on the live gold set | ☐ pending — record score + date here once measured |
+
+Code-level pieces (extractor, factory, eval scorer, synthetic fixture, CLI `eval`/`--naive`) are built
+and pass the full test suite + lint; rows above track the *live, human-in-the-loop* verification against
+real data, which is a separate, later step (see `odysseus-extension/README.md` "Project status" and
+`odysseus-extension/CLAUDE.md` "Module 1 — Slice 2").
