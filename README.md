@@ -21,8 +21,10 @@ structured data, and makes them searchable in the brain:
 - Uploads each file to **Odysseus's RAG** so it's semantically searchable in the brain.
 - Ships a **review CLI** to approve / reject / correct staged triples.
 
-> The triple extractor is a deliberately simple, deterministic placeholder (`naive-v1`). Slice 2
-> swaps in a schema-constrained LLM extractor behind the same interface.
+> The default triple extractor is now a **schema-constrained LLM extractor** (`llm-v1`, local Qwen)
+> that calls a local llama.cpp endpoint with a strict JSON schema. The original deterministic
+> extractor (`naive-v1`) remains available — no model required — via `extractor = "naive"` in the
+> config or the `--naive` flag on `ingest`.
 
 ## Prerequisites
 
@@ -32,6 +34,9 @@ structured data, and makes them searchable in the brain:
   also needs its **ChromaDB server** (on `localhost:8100`) and an **embedding endpoint** configured.
   See `ops/instance-config.md` for the exact setup on this host. You can run ingestion **without** a
   brain using `--no-rag` (stages triples locally only).
+- A local **llama.cpp Qwen endpoint** at `http://127.0.0.1:8081/v1` (OpenAI-compatible, must support
+  `response_format: json_schema`) — needed for the default LLM extractor. **Not needed** if you run
+  with `--naive` / `extractor = "naive"`.
 
 ## Installation
 
@@ -68,6 +73,12 @@ uv run python -m ingestion.cli review --list --config ingestion.toml
 uv run python -m ingestion.cli review --approve <ID> --config ingestion.toml
 uv run python -m ingestion.cli review --reject  <ID> --note "why" --config ingestion.toml
 uv run python -m ingestion.cli review --correct <ID> --subject S --predicate P --object O --config ingestion.toml
+
+# Stage triples with the deterministic naive extractor (no LLM):
+uv run python -m ingestion.cli ingest --config ingestion.toml --no-rag --naive
+
+# Score the configured extractor against a gold set:
+uv run python -m ingestion.cli eval --config ingestion.toml --gold eval/gold.jsonl
 ```
 
 Ingestion is **incremental** (unchanged files are skipped) and **interrupt-safe** (a file is marked
@@ -84,7 +95,12 @@ uv run ruff check src tests   # lint
 
 - ✅ **Module 0** — brain adopted & verified (see `ops/instance-config.md`).
 - ✅ **Module 1, Slice 1** — ingestion skeleton (this service).
-- ⏭️ **Next:** Slice 2 (12–14B model + schema-constrained triple extractor + eval set), then the
-  Knowledge Graph (Kùzu), unified retrieval, and the memory router.
+- ✅ **Module 1, Slice 2** — schema-constrained LLM triple extractor (`llm-v1`, local Qwen) behind an
+  extractor factory, with `naive-v1` retained as a no-model fallback; an eval harness
+  (precision/recall/F1, `cli eval`) scores the configured extractor against a hand-labeled gold set
+  (precision target ≥ 0.80).
+- ⏭️ **Next:** Module 2 — the Knowledge Graph (Kùzu): promote approved triples into a graph, entity
+  resolution, `neighbors`/`path`/`subgraph` tools. Deferred from Slice 2: cloud verification of
+  low-confidence triples (still a required keystone defense, not yet built).
 
 Design source of truth: `../docs/master-spec.md` (Part 5). Live host config: `ops/instance-config.md`.

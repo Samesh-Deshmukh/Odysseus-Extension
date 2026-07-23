@@ -23,6 +23,10 @@ class Config:
     odysseus_url: str = "http://localhost:7000"
     odysseus_user: str = ""
     odysseus_password: str = ""
+    extractor: str = "llm"
+    llm_url: str = "http://127.0.0.1:8081/v1"
+    llm_model: str = ""
+    llm_timeout: float = 60.0
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -41,6 +45,10 @@ def load_config(path: Path | None = None) -> Config:
         chunk_size=int(data.get("chunk_size", 1000)),
         chunk_overlap=int(data.get("chunk_overlap", 200)),
         odysseus_url=data.get("odysseus_url", "http://localhost:7000"),
+        extractor=data.get("extractor", "llm"),
+        llm_url=data.get("llm_url", "http://127.0.0.1:8081/v1"),
+        llm_model=data.get("llm_model", ""),
+        llm_timeout=float(data.get("llm_timeout", 60.0)),
     )
     # Credentials + URL override strictly from the environment.
     cfg.odysseus_url = os.environ.get("ODYSSEUS_URL", cfg.odysseus_url)

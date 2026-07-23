@@ -7,3 +7,12 @@ db_path = "staging.db"
 chunk_size = 1000
 chunk_overlap = 200
 odysseus_url = "http://localhost:7000"
+
+# Triple extractor: "llm" (schema-constrained LLM via the local Qwen endpoint)
+# or "naive" (deterministic wikilink/tag extractor, no model).
+extractor = "llm"
+# Local llama.cpp OpenAI-compatible endpoint (base URL, no trailing /chat/completions).
+llm_url = "http://127.0.0.1:8081/v1"
+# Optional served-model label; recorded in triple provenance as llm-v1:<label>.
+llm_model = "qwen3-14b-instruct-q4_k_m"
+llm_timeout = 60

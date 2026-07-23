@@ -49,3 +49,27 @@ def test_missing_config_path_raises(monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         load_config(Path("/no/such/ingestion.toml"))
+
+
+def test_load_config_reads_extractor_and_llm_settings(tmp_path):
+    cfg_file = tmp_path / "ingestion.toml"
+    cfg_file.write_text(
+        'roots = ["/tmp/x"]\n'
+        'extractor = "llm"\n'
+        'llm_url = "http://127.0.0.1:8081/v1"\n'
+        'llm_model = "qwen3-14b-instruct-q4_k_m"\n'
+        'llm_timeout = 45\n'
+    )
+    cfg = load_config(cfg_file)
+    assert cfg.extractor == "llm"
+    assert cfg.llm_url == "http://127.0.0.1:8081/v1"
+    assert cfg.llm_model == "qwen3-14b-instruct-q4_k_m"
+    assert cfg.llm_timeout == 45.0
+
+
+def test_config_defaults_are_llm_and_local_qwen():
+    cfg = Config()
+    assert cfg.extractor == "llm"
+    assert cfg.llm_url == "http://127.0.0.1:8081/v1"
+    assert cfg.llm_model == ""
+    assert cfg.llm_timeout == 60.0

@@ -21,6 +21,7 @@ def _cfg(tmp_path, root) -> Config:
         roots=[root], ignore_globs=["**/.git/**"], extensions={".md"},
         db_path=tmp_path / "s.db", chunk_size=1000, chunk_overlap=200,
         odysseus_url="http://x", odysseus_user="u", odysseus_password="p",
+        extractor="naive",
     )
 
 
@@ -208,3 +209,70 @@ def test_ingest_rejects_nonpositive_chunk_size(tmp_path):
 
     with pytest.raises(ValueError):
         ingest(cfg, staging, None, extracted_at="2026-07-12T00:00:00Z")
+
+
+def test_extraction_io_failure_leaves_file_for_retry(tmp_path):
+    from ingestion.extractor import ExtractorHandle
+    from ingestion.triples import Triple
+
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "arch.md").write_text("# Arch\nJANET uses MQTT.")
+
+    cfg = _cfg(tmp_path, vault)
+    staging = Staging(cfg.db_path)
+
+    counter = {"n": 0}
+
+    def failing_extract(title, chunk):
+        return []
+
+    def failing_io_failures():
+        counter["n"] += 1
+        return counter["n"]
+
+    failing_handle = ExtractorHandle(
+        model="llm-v1:test", extract=failing_extract, io_failures=failing_io_failures
+    )
+    stats1 = ingest(
+        cfg, staging, None, extracted_at="2026-07-19T00:00:00Z", extractor=failing_handle
+    )
+    assert stats1.files_failed == 1
+    assert stats1.files_ingested == 0
+    stored_hash, _ = staging.get_document_state(str(vault / "arch.md"))
+    assert stored_hash == ""
+
+    # Second run with a healthy extractor: the file must be retried, not skipped.
+    def healthy_extract(title, chunk):
+        return [Triple("JANET", "uses", "MQTT", 0.9, chunk.char_start, chunk.char_end)]
+
+    healthy_handle = ExtractorHandle(
+        model="llm-v1:test", extract=healthy_extract, io_failures=lambda: 0
+    )
+    stats2 = ingest(
+        cfg, staging, None, extracted_at="2026-07-19T01:00:00Z", extractor=healthy_handle
+    )
+    assert stats2.files_skipped == 0
+    assert stats2.files_ingested == 1
+
+
+def test_ingest_uses_injected_extractor_model_tag(tmp_path):
+    from ingestion.extractor import ExtractorHandle
+    from ingestion.triples import Triple
+
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "n.md").write_text("# N\nJANET uses MQTT.")
+
+    cfg = _cfg(tmp_path, vault)
+    staging = Staging(cfg.db_path)
+
+    def fake_extract(title, chunk):
+        return [Triple("JANET", "uses", "MQTT", 0.9, chunk.char_start, chunk.char_end)]
+
+    handle = ExtractorHandle(model="llm-v1:test", extract=fake_extract)
+    stats = ingest(cfg, staging, None, extracted_at="2026-07-19T00:00:00Z", extractor=handle)
+    assert stats.triples_staged == 1
+    rows = staging.list_triples("staged")
+    assert rows[0]["extractor_model"] == "llm-v1:test"
+    assert rows[0]["object"] == "MQTT"
